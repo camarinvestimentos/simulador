@@ -19,16 +19,23 @@ const els = {
   kpiJuros: document.querySelector('#kpiJuros'),
 
   // NOVOS inputs
+  taxaInflacao: document.querySelector('#taxaInflacao'),
   taxaPassiva: document.querySelector('#taxaPassiva'),
   objetivo: document.querySelector('#objetivo'),
 
   // NOVOS KPIs
+  kpiFinalReal: document.querySelector('#kpiFinalReal'),
+  kpiInvestidoReal: document.querySelector('#kpiInvestidoReal'),
+  kpiJurosReal: document.querySelector('#kpiJurosReal'),
   kpiPassivaMensal: document.querySelector('#kpiPassivaMensal'),
   kpiPassivaAnual: document.querySelector('#kpiPassivaAnual'),
   kpiAporteNec: document.querySelector('#kpiAporteNec'),
   kpiObjetivoMsg: document.querySelector('#kpiObjetivoMsg'),
 
   tabelaBody: document.querySelector('#tabela tbody'),
+  tableHead: document.querySelector('#tableHead'),
+  toggleNominal: document.querySelector('#toggleNominal'),
+  toggleReal: document.querySelector('#toggleReal'),
   chart: document.querySelector('#chart'),
   tooltip: document.querySelector('#tooltip'),
 };
@@ -49,19 +56,35 @@ function simular() {
 
   const meses = Math.round(prazo*12);
   const i = Math.pow(1+taxaAA, 1/12) - 1; // taxa mensal equivalente
+  const taxaInflacaoAA = Number(els.taxaInflacao?.value) / 100 || 0;
+  const iInflacao = Math.pow(1 + taxaInflacaoAA, 1/12) - 1; // taxa de inflação mensal equivalente
+
   let saldo = valorInicial, investido = valorInicial;
+  let saldoReal = valorInicial, investidoReal = valorInicial;
   const pontos = [];
 
   for(let m=1; m<=meses; m++){
     saldo *= (1+i);
-    if(m % freq === 0){ saldo += aporte; investido += aporte; }
-    pontos.push({m, saldo, investido, juros: saldo - investido});
+    investido = (m % freq === 0) ? (investido + aporte) : investido;
+    if(m % freq === 0){ saldo += aporte; }
+
+    // Ajuste para inflação
+    const fatorInflacao = Math.pow(1 + iInflacao, m);
+    saldoReal = saldo / fatorInflacao;
+    investidoReal = investido / fatorInflacao;
+
+    pontos.push({m, saldo, investido, juros: saldo - investido, saldoReal, investidoReal, jurosReal: saldoReal - investidoReal});
   }
 
   // KPIs existentes
   els.kpiFinal.textContent = fmtBRL(saldo);
   els.kpiInvestido.textContent = fmtBRL(investido);
   els.kpiJuros.textContent = fmtBRL(saldo - investido);
+
+  // Novos KPIs para valores reais
+  els.kpiFinalReal.textContent = fmtBRL(saldoReal);
+  els.kpiInvestidoReal.textContent = fmtBRL(investidoReal);
+  els.kpiJurosReal.textContent = fmtBRL(saldoReal - investidoReal);
 
   // ====== (1) RENDA PASSIVA ======
   const taxaPassivaPct = Number(els.taxaPassiva?.value) || 0; // % a.m.
@@ -85,11 +108,20 @@ function simular() {
     } else {
       // Aporte mensal necessário (considerando contribuições no fim de cada mês)
       let PMT;
+      // Ajustar o objetivo financeiro pela inflação para o futuro
+      const objetivoAjustado = objetivo * Math.pow(1 + iInflacao, meses);
+
       if (i === 0){
-        PMT = (objetivo - valorInicial)/meses;
+        PMT = (objetivoAjustado - valorInicial)/meses;
       } else {
-        const fator = Math.pow(1+i, meses);
-        PMT = ((objetivo - valorInicial * fator) * i) / (fator - 1);
+        // Usar a taxa de juros real (rendimento - inflação)
+        const iReal = (1 + i) / (1 + iInflacao) - 1;
+        if (iReal === 0) {
+          PMT = (objetivoAjustado - valorInicial) / meses;
+        } else {
+          const fatorReal = Math.pow(1 + iReal, meses);
+          PMT = ((objetivoAjustado - valorInicial * fatorReal) * iReal) / (fatorReal - 1);
+        }
       }
       const PMTpos = Math.max(0, PMT);
 
@@ -106,14 +138,54 @@ function simular() {
   }
 
   // Tabela
-  els.tabelaBody.innerHTML = pontos.map(p=>`
-    <tr>
-      <td>${p.m}</td>
-      <td>${fmtBRL(p.saldo)}</td>
-      <td>${fmtBRL(p.investido)}</td>
-      <td>${fmtBRL(p.juros)}</td>
-    </tr>
-  `).join('');
+  let currentPontos = pontos;
+  let isNominalView = true;
+
+  function renderTable(data, isNominal) {
+    els.tabelaBody.innerHTML = data.map(p=>`
+      <tr>
+        <td>${p.m}</td>
+        <td>${fmtBRL(isNominal ? p.saldo : p.saldoReal)}</td>
+        <td>${fmtBRL(isNominal ? p.investido : p.investidoReal)}</td>
+        <td>${fmtBRL(isNominal ? p.juros : p.jurosReal)}</td>
+      </tr>
+    `).join("");
+
+    els.tableHead.innerHTML = `
+      <th>Mês</th>
+      <th>Saldo (R$)</th>
+      <th>Investido (R$)</th>
+      <th>Juros (R$)</th>
+    `;
+    if (!isNominal) {
+      els.tableHead.innerHTML = `
+        <th>Mês</th>
+        <th>Saldo Real (R$)</th>
+        <th>Investido Real (R$)</th>
+        <th>Juros Real (R$)</th>
+      `;
+    }
+  }
+
+  renderTable(currentPontos, isNominalView);
+
+  els.toggleNominal.onclick = () => {
+    isNominalView = true;
+    renderTable(currentPontos, isNominalView);
+    els.toggleNominal.classList.add('active');
+    els.toggleNominal.classList.remove('secondary');
+    els.toggleReal.classList.remove('active');
+    els.toggleReal.classList.add('secondary');
+  };
+
+  els.toggleReal.onclick = () => {
+    isNominalView = false;
+    renderTable(currentPontos, isNominalView);
+    els.toggleReal.classList.add('active');
+    els.toggleReal.classList.remove('secondary');
+    els.toggleNominal.classList.remove('active');
+    els.toggleNominal.classList.add('secondary');
+  };
 
   // Gráfico
   desenharGrafico(pontos);
@@ -258,6 +330,7 @@ els.exemplo.addEventListener('click', ()=>{
   els.rendimento.value="12";
   els.aporte.value="500,00";
   els.recorrencia.value="1";
+  els.taxaInflacao.value="3";
   els.taxaPassiva.value="1";
   els.objetivo.value="500.000,00";
   simular();
@@ -270,3 +343,9 @@ els.objetivo?.addEventListener('blur', ()=>{
   const n = parseBRL(els.objetivo.value);
   els.objetivo.value = n ? n.toLocaleString('pt-BR') + ',00' : '';
 });
+
+
+
+// Inicializa a tabela e os botões ao carregar a página
+els.toggleNominal.click();
+
