@@ -127,3 +127,49 @@ thead th { position: sticky; top: 0; background: #111114; z-index: 1; text-align
 .marker { fill: var(--accent); stroke: #000; stroke-width: 0.5 }
 .marker-invest { fill: var(--mutedLine); stroke: #000; stroke-width: 0.5 }
 .cursor-line { stroke: rgba(255,255,255,.35); stroke-dasharray: 4 4 }
+
+
+
+.input-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.input-group:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.input-group h3 { font-size: 14px; color: var(--accent-soft); margin-top: 0; margin-bottom: 10px; }
+.actions-group { display: flex; gap: 8px; margin-top: 20px; }
+
+
+.kpis-group { margin-top: 20px; }
+.kpis-group h3 { font-size: 14px; color: var(--accent-soft); margin-bottom: 10px; }
+
+
+.table-controls { display: flex; gap: 8px; margin-bottom: 10px; }
+.btn.small { padding: 8px 12px; font-size: 12px; }
+.btn.small.active { background: var(--accent); color: var(--bg); }
+.btn.small.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+
+.help-text { font-size: 10px; color: var(--muted); display: block; margin-top: 2px; margin-bottom: 5px; }
+.help-text-kpi { font-size: 10px; color: var(--muted); cursor: help; }
+.kpi-description {
+  font-size: 10px;
+  color: var(--muted);
+  display: none;
+  position: absolute;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  z-index: 10;
+  width: 200px;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 100%; /* Posiciona abaixo do KPI */
+  margin-top: 5px;
+  text-align: center;
+}
+.kpi {
+  position: relative;
+}
+.kpi:hover .kpi-description {
+  display: block;
+}
+
+
